@@ -16,7 +16,7 @@ import src.feedGeneration.CardInfo as CardInfo
 import src.authorizer.ratelimiter as ratelimiter
 import logging
 import time
-import psycopg2
+# import psycopg2
 import json
 import glob
 import xml
@@ -1768,116 +1768,16 @@ def get_favorites():
 @app.route('/getfeed', methods=['GET'])
 def get_feed():
     time_now = datetime.datetime.now()
-    worker_id = str(request.args.get('worker_id')).strip()
-    print("WORKER ID IN GET FEED!!!")
-    print(worker_id)
-    experimental_condition_val = ""
-    if worker_id in experimental_condition.keys():
-        experimental_condition_val = experimental_condition[worker_id]
-    feedtype = 'M'
-    if experimental_condition_val == 'treatment':
-        feedtype = 'L'
-    attn = int(request.args.get('attn'))
-    page = int(request.args.get('page'))
-    session_id = -1
-    if attn == 0 and page == 0:
-        insert_session_payload = {'worker_id': worker_id}
-        resp_session_id = requests.get('http://127.0.0.1:5052/insert_session',params=insert_session_payload)
-        session_id = resp_session_id.json()["data"]
-        session_id_store[worker_id] = session_id
-        #db_response_attn = requests.get('http://127.0.0.1:5052/get_existing_attn_tweets_new?worker_id='+str(worker_id)+"&page=NA&feedtype="+feedtype)
-        #db_response_attn = db_response_attn.json()['data']
-        db_response_timeline = requests.get('http://127.0.0.1:5052/get_existing_tweets_new?worker_id='+str(worker_id)+"&page=NA&feedtype="+feedtype)
-        db_response_timeline = db_response_timeline.json()['data']
-        attn_payload = []
-        attn_pages = []
-        #for attn_tweet in db_response_attn:
-        #    db_tweet = {
-        #        'tweet_id': attn_tweet[0],
-        #        'page' : attn_tweet[2],
-        #        'rank' : attn_tweet[3],
-        #        'present' : attn_tweet[1]
-        #    }
-        #    attn_payload.append(db_tweet)
-        #    attn_pages.append(int(attn_tweet[2]))
-        #max_page_store[worker_id] = max(attn_pages)
-        max_page_store[worker_id] = 1
-        timeline_payload = []
-        for timeline_tweet in db_response_timeline:
-            db_tweet = {
-                'fav_before': timeline_tweet[2],
-                'tid' : timeline_tweet[0],
-                'rtbefore' : timeline_tweet[3],
-                'page' : timeline_tweet[4],
-                'rank' : timeline_tweet[5],
-                'predicted_score' : timeline_tweet[6]
-            }
-            timeline_payload.append(db_tweet)
-        finalJson = []
-        finalJson.append(session_id)
-        finalJson.append(feedtype)
-        finalJson.append(timeline_payload)
-        finalJson.append(attn_payload)
-        requests.post('http://127.0.0.1:5052/insert_timelines_attention_in_session',json=finalJson)
-        db_response_timeline_screen_2 = requests.get('http://127.0.0.1:5052/get_existing_tweets_new_screen_2?worker_id='+str(worker_id)+"&page=NA&feedtype="+feedtype)
-        db_response_timeline_screen_2 = db_response_timeline_screen_2.json()['data']
-        timeline_payload = []
-        for timeline_tweet in db_response_timeline_screen_2:
-            db_tweet = {
-                'tid' : timeline_tweet[0],
-                'page' : timeline_tweet[4],
-                'rank' : timeline_tweet[5],
-                'predicted_score' : timeline_tweet[6]
-            }
-            timeline_payload.append(db_tweet)
-        finalJson = []
-        finalJson.append(session_id)
-        finalJson.append(feedtype)
-        finalJson.append(timeline_payload)
-        requests.post('http://127.0.0.1:5052/insert_timelines_attention_in_session_screen_2',json=finalJson)
-    else:
-        session_id = session_id_store[worker_id]
-    if attn == 1:
-        print("Here!!")
-        print(worker_id)
-        print(page)
-        db_response = requests.get('http://127.0.0.1:5052/get_existing_tweets_new_screen_2?worker_id='+str(worker_id)+"&page="+str(page)+"&feedtype="+feedtype)
-        db_response = db_response.json()['data']
-        if db_response == "NEW":
-            feed_json = []
-            feed_json.append({"anything_present":"NO"})
-            return jsonify(feed_json)
-        public_tweets = [d[4] for d in db_response]
-        public_tweets_v2 = [d[4] for d in db_response]
-        domains = [d[6] for d in db_response]
-        if len(db_response[0]) > 5:
-            public_tweets_v2 = [d[5] for d in db_response]    
-    else:
-        print("page:::")
-        print(page)
-        print(worker_id)   
-        db_response = requests.get('http://127.0.0.1:5052/get_existing_tweets_new?worker_id='+str(worker_id)+"&page="+str(page)+"&feedtype="+feedtype)
-        db_response = db_response.json()['data']
-        if db_response == "NEW":
-            feed_json = []
-            feed_json.append({"anything_present":"NO"})
-            return jsonify(feed_json)
-        public_tweets = [d[4] for d in db_response]
-        public_tweets_v2 = [d[4] for d in db_response]
-        domains = [d[6] for d in db_response]
-        if len(db_response[0]) > 5:
-            public_tweets_v2 = [d[5] for d in db_response]
-
     feed_json = []
     rankk = 1
+    public_tweets = []
+    sample_tweets_file_path = "/home/rivaldoe/Downloads/sample_posts_TWITTER.json"
 
-    for (tweet_en,tweet) in enumerate(public_tweets): # Modify what tweet is for this loop in order to change the logic ot use our data or twitters.
+    with open(sample_tweets_file_path, "r") as fp:
+        public_tweets = json.load(fp)["data"]
+    # public_tweets = [public_tweets[0]]
+    for (tweet_en,tweet) in enumerate(public_tweets): 
 
-        # Checking for an image in the tweet. Adds all the links of any media type to the eimage list.
-        #tweet_v2 = public_tweets_v2[tweet_en]
-        #if contains_video(tweet_v2):
-        #    print("Skipped Video for tweet id : "+str(tweet_v2["id"]))
-        #    continue
         actor_name = tweet["user"]["name"]
         full_text = tweet["full_text"]
         url_start = []
@@ -1885,11 +1785,7 @@ def get_feed():
         url_display = []
         url_extend = []
         url_actual = []
-        domain_present = domains[tweet_en]
-        if domain_present:
-            domain_present = 'From ' + domain_present
-        else:
-            domain_present = ''
+        domain_present = ''
         if "entities" in tweet.keys():
             if "urls" in tweet["entities"]:
                 for url_dict in tweet["entities"]["urls"]:
@@ -2050,28 +1946,25 @@ def get_feed():
         if "urls" in entities_keys and not hasEmbed:
             found_card = False
             urls_list = [_['url'] for _ in all_urls]
-            for each_url in all_urls:
-                if re.match("^https://twitter.com/.*", each_url["expanded_url"]) is not None:
-                    continue # skip twitter.com URLs
-                card_data = CardInfo.getCardData(each_url['expanded_url'])
-                if "image" in card_data.keys():
-                    image_raw = card_data['image']
-                    picture_heading = card_data["title"]
-                    picture_description = card_data["description"]
-                    urls = each_url['url']
-                    expanded_urls = each_url['expanded_url']
-                    found_card = True
-                    break
+            # for each_url in all_urls:
+            #     if re.match("^https://twitter.com/.*", each_url["expanded_url"]) is not None:
+            #         continue # skip twitter.com URLs
+            #     card_data = CardInfo.getCardData(each_url['expanded_url'])
+            #     if "image" in card_data.keys():
+            #         image_raw = card_data['image']
+            #         picture_heading = card_data["title"]
+            #         picture_description = card_data["description"]
+            #         urls = each_url['url']
+            #         expanded_urls = each_url['expanded_url']
+            #         found_card = True
+            #         break
             if not found_card:
                 urls = ""
                 expanded_urls = ""
 
-        #if isRetweet:
-            #print("Is a retweet.")
 
         for urll in urls_list:
             full_text = full_text.replace(urll,"")
-        #print(full_text)
         full_text = xml.sax.saxutils.unescape(full_text)
 
         body = html.unescape(full_text)
@@ -2085,8 +1978,6 @@ def get_feed():
             time = "-00:0"+str(minutes)
         else:
             time = "-00:"+str(minutes)
-        #time.append(td.seconds)
-        # Fixing the like system
         finalLikes = ""
         if (tempLikes <= 999):
             finalLikes = str(tempLikes)
@@ -2100,7 +1991,6 @@ def get_feed():
                     finalLikes = str(counterVar) + "." + str(tempLikes)[0] + "k"
                     break
 
-        # Fixing the retweet system
         finalRetweets = ""
         tempRetweets = tweet["retweet_count"]
         if (tempRetweets <= 999):
@@ -2128,7 +2018,7 @@ def get_feed():
             'experiment_group':'var1',
             'post_id':rankk,
             'tweet_id':str(tweet["id"]),
-            'worker_id':str(worker_id), 
+            'worker_id':"", 
             'rank':str(rankk),
             'picture':image_raw.replace("http:", "https:"),
             'picture_heading':picture_heading,
@@ -2151,10 +2041,9 @@ def get_feed():
         }
         feed_json.append(feed)
         rankk = rankk + 1
-    #last_feed_value = {'new_random_identifier' : new_random_identifier}
-    #feed_json.append(last_feed_value)
-    last_feed_value = {'session_id' : session_id, 'max_pages' : max_page_store[worker_id], 'anything_present' : 'YES'}
-    feed_json.append(last_feed_value)
+    print(feed_json[0])
+    # last_feed_value = {'session_id' : session_id, 'max_pages' : max_page_store[worker_id], 'anything_present' : 'YES'}
+    # feed_json.append(last_feed_value)
     time_diff_seconds = (datetime.datetime.now()-time_now).total_seconds()
     print("Time taken : ")
     print(time_diff_seconds)

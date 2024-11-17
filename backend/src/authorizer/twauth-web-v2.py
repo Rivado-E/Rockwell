@@ -22,6 +22,7 @@ import glob
 import xml
 import xml.sax.saxutils
 from sqlitedict import SqliteDict #to save session data
+from models import Post
 
 app = Flask(__name__)
 
@@ -1776,16 +1777,23 @@ def get_feed():
     with open(sample_tweets_file_path, "r") as fp:
         public_tweets = json.load(fp)["data"]
     # public_tweets = [public_tweets[0]]
-    for (tweet_en,tweet) in enumerate(public_tweets): 
+    for (tweet_en, tweet) in enumerate(public_tweets): 
+        post = Post(**tweet)
+        actor_name = post.user.name
+        full_text = post.full_text
 
-        actor_name = tweet["user"]["name"]
-        full_text = tweet["full_text"]
         url_start = []
         url_end = []
         url_display = []
         url_extend = []
         url_actual = []
         domain_present = ''
+        print(post.dict())
+
+        if post.entities is not None:
+            print("noice")
+        else:
+            print("dang")
         if "entities" in tweet.keys():
             if "urls" in tweet["entities"]:
                 for url_dict in tweet["entities"]["urls"]:
